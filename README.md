@@ -1,99 +1,112 @@
-# Go の Ticker と Cron を使った定期実行サンプル
+# Go の Ticker と Cron を使ったサンプル
 
 ## 概要
 
-このプロジェクトは、Go の `time.Ticker` と `github.com/robfig/cron/v3` を使用して、異なる間隔で定期的にジョブを実行する方法を学ぶためのものです。
+このプロジェクトは、Go の `time.Ticker` と `github.com/robfig/cron/v3` を活用して定期的な処理を実行する方法を示します。
 
-- `time.Ticker` を使用して **2 秒ごとに 3 回実行されるジョブ (tickerJob)**
-- `cron/v3` を使用して **5 秒ごとに実行されるジョブ (cronJob)**
-- `tickerJob` は **ゴルーチン** を使って並行実行される
+## `time.Ticker` とは？
 
-## コードの説明
+`time.Ticker` は、指定した間隔ごとに時間を通知するチャンネル (`ticker.C`) を提供する Go の機能です。定期的な処理を実行する際に便利です。
 
-### **Ticker を使ったジョブ**
+## `cron` とは？
 
-```go
-func tickerJob() {
-    ticker := time.NewTicker(2 * time.Second) // 2秒ごとに Tick を送る Ticker を作成
-    defer ticker.Stop() // 関数終了時に Ticker を停止
+`github.com/robfig/cron/v3` は、Unix の `cron` のように定期的なタスクをスケジュールできる Go のライブラリです。
 
-    for i := 0; i < 3; i++ { // 3回だけ実行
-        fmt.Println("Tickerジョブ:", time.Now())
-        <-ticker.C // Tick を待つ
-    }
-}
+## ディレクトリ構成
+
+```
+cmd/
+│── basic/
+│   └── main.go   # 基本的な Ticker と Cron の組み合わせ
+│── timeIntervalUpdate/
+│   └── main.go   # 動的に Ticker の間隔を変更する Cron の活用
 ```
 
-**2 秒ごとに 3 回実行されるジョブ**
+---
 
-- `ticker.C` で 2 秒ごとに tick を受信し、処理を実行
-- 3 回実行後に終了
+## `basic/main.go`
 
-### **Cron を使ったジョブ**
+### 説明
 
-```go
-func cronJob() {
-    fmt.Println("Cronジョブ実行:", time.Now())
-}
-```
+このプログラムは、以下の 2 つのジョブを実行します。
 
-**5 秒ごとに実行されるジョブ**
+1. **Ticker ジョブ** (2 秒ごとに 3 回実行)
+   - `time.NewTicker` を使用し、2 秒間隔で合計 3 回ログを出力します。
+2. **Cron ジョブ** (5 秒ごとに実行)
+   - `cron.AddFunc("@every 5s", cronJob)` を使用し、5 秒ごとにログを出力します。
 
-- 現在時刻を表示
-
-### **メイン関数**
-
-```go
-func main() {
-    c := cron.New() // Cron スケジューラを作成
-    c.AddFunc("@every 5s", cronJob) // 5秒ごとに `cronJob` を実行
-    c.Start() // Cron を開始
-
-    go tickerJob() // Tickerジョブを別ゴルーチンで動かす
-
-    time.Sleep(30 * time.Second) // 30 秒間待機
-    c.Stop() // Cron を停止
-}
-```
-
-- Cron のスケジューラ (`c`) を作成し、5 秒ごとに `cronJob()` を実行
-- `tickerJob()` をゴルーチン (`go`) で並行実行
-- 30 秒待機 (`time.Sleep(30 * time.Second)`) し、その間に Ticker と Cron の処理が動く
-- 30 秒後に `c.Stop()` を実行し、Cron を停止
-
-## 実行方法
+### 実行方法
 
 ```sh
-go run main.go
+go run basic/main.go
 ```
 
-## 実行結果 (出力例)
+### 出力例
+
+```
+Tickerジョブ: 2025-03-04 12:00:00.123456 +0000 UTC
+Cronジョブ実行: 2025-03-04 12:00:05.123456 +0000 UTC
+Tickerジョブ: 2025-03-04 12:00:02.123456 +0000 UTC
+Tickerジョブ: 2025-03-04 12:00:04.123456 +0000 UTC
+Cronジョブ実行: 2025-03-04 12:00:10.123456 +0000 UTC
+...
+```
+
+### 学んだポイント
+
+- `Ticker` を用いた定期処理の実行
+- `Cron` を用いたスケジュール実行
+- `goroutine` を使った非同期処理
+- `time.Sleep()` を使ったメインループの制御
+
+---
+
+## `timeIntervalUpdate/main.go`
+
+### 説明
+
+このプログラムでは、`Ticker` の間隔を動的に変更する方法を示します。
+
+1. **Ticker ジョブ** (最初は 5 秒ごとに実行)
+   - `time.Sleep(tickerInterval)` を使い、初期状態では 5 秒間隔でログを出力します。
+2. **Cron ジョブ** (15 秒ごとに実行)
+   - 15 秒ごとに `changeInterval` 関数を呼び出し、Ticker の間隔を 2 秒に変更します。
+
+### 実行方法
 
 ```sh
-Tickerジョブ: 2025-03-01 12:00:00
-Tickerジョブ: 2025-03-01 12:00:02
-Tickerジョブ: 2025-03-01 12:00:04
-Cronジョブ実行: 2025-03-01 12:00:05
-Cronジョブ実行: 2025-03-01 12:00:10
-Cronジョブ実行: 2025-03-01 12:00:15
-Cronジョブ実行: 2025-03-01 12:00:20
-Cronジョブ実行: 2025-03-01 12:00:25
-Cronジョブ実行: 2025-03-01 12:00:30
+go run timeIntervalUpdate/main.go
 ```
 
-**動作のポイント**
+### 出力例
 
-- `tickerJob()` は 2 秒ごとに 3 回実行
-- `cronJob()` は 5 秒ごとに実行
-- `main()` が 30 秒後に終了し、`cron` も停止
+```
+Tickerジョブ実行: 2025-03-04 12:00:00.123456 +0000 UTC
+Tickerジョブ実行: 2025-03-04 12:00:05.123456 +0000 UTC
+Tickerジョブ実行: 2025-03-04 12:00:10.123456 +0000 UTC
+Tickerの間隔を 2秒 に変更
+Tickerジョブ実行: 2025-03-04 12:00:12.123456 +0000 UTC
+Tickerジョブ実行: 2025-03-04 12:00:14.123456 +0000 UTC
+...
+```
 
-## 学習ポイント
+### 学んだポイント
 
-1. `time.Ticker` を使って、指定間隔 (`2秒`) で処理を実行する方法
-2. `cron/v3` を使って、指定間隔 (`5秒`) で関数をスケジュールする方法
-3. `go` を使って `tickerJob()` をゴルーチンで並行実行する方法
-4. `time.Sleep()` で `main()` の処理をブロックし、Ticker & Cron の動作を保証する
-5. `c.Stop()` で `cron` の処理を適切に終了させる
+- `Ticker` の間隔を変更する方法
+- `Cron` を使って定期的に `Ticker` の間隔を更新
+- `goroutine` を用いた非同期処理
+- `time.Sleep()` を用いたシンプルな時間制御
+
+---
+
+## 使用ライブラリ
+
+- [robfig/cron](https://github.com/robfig/cron): Go 言語用の Cron スケジューラ
+
+## 実行環境
+
+- Go 1.18 以上推奨
+- `go get github.com/robfig/cron/v3` を事前に実行
 
 ## 作成者
 
